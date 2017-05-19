@@ -1,33 +1,30 @@
 from socket import socket, AF_INET, SOCK_DGRAM
 from sys import argv, stdout
-from threading import Thread
+from threading import Thread, Timer
 from time import sleep
 
-class sendnodes(Thread):
-	toexit = False
-	def run(self):
-		while(1):
-			if sender.toexit:
-				print('byeee')
-				exit()
-			print('\nRouting Table')
-			print('+-----------------------+-----------------------+------+')
-			print('|      Dest Address     |   Next Hop Address    | Cost |')
-			print('+-----------------------+-----------------------+------+')
-			for hana in routing_table:
-				print('| %-21s | %-21s | %-4d |' % (hana.destaddress(), hana.nextaddress(), hana.getCost()) )
-			print('+-----------------------+-----------------------+------+')
-			dva = [hana for hana in costlist if hana.tuple() != (ip,port)]
-			for hana in dva:
-				dataout = ''
-				for song in routing_table:
-					if poisonenabled and hana.tuple() == song.nextaddress():
-						dataout += ('%s %d ' % song.desttuple() ) + ('%d\n' % psinfinity)
-					else:
-						dataout += ('%s %d ' % song.desttuple() ) + ('%d\n' % song.getCost())
-				val = sock.sendto(dataout.encode(stdout.encoding), hana.tuple())
-				print(str(val) + ' bytes sent to ' + hana.address())
-			sleep(3);
+def sendnodes():
+	print('\nRouting Table')
+	print('+-----------------------+-----------------------+------+')
+	print('|      Dest Address     |   Next Hop Address    | Cost |')
+	print('+-----------------------+-----------------------+------+')
+	for hana in routing_table:
+		print('| %-21s | %-21s | %-4d |' % (hana.destaddress(), hana.nextaddress(), hana.getCost()) )
+	print('+-----------------------+-----------------------+------+')
+	dva = [hana for hana in costlist if hana.tuple() != (ip,port)]
+	for hana in dva:
+		dataout = ''
+		for song in routing_table:
+			if poisonenabled and hana.tuple() == song.nextaddress():
+				dataout += ('%s %d ' % song.desttuple() ) + ('%d\n' % psinfinity)
+			else:
+				dataout += ('%s %d ' % song.desttuple() ) + ('%d\n' % song.getCost())
+		val = sock.sendto(dataout.encode(stdout.encoding), hana.tuple())
+		print(str(val) + ' bytes sent to ' + hana.address())
+	if active:
+		global sender
+		sender = Timer(interval, sendnodes)
+		sender.start()
 
 def exitmessage(message):
 	print(message)
@@ -98,7 +95,7 @@ def costparser(datain, selfaddress):
 			exit()
 	return listout	
 
-interval = 10000
+interval = 10
 psinfinity = 100
 port = 12345
 filedir = ''
@@ -172,10 +169,9 @@ print('+-----------------+-------+------+')
 sock = socket(AF_INET, SOCK_DGRAM)
 sock.bind(('', port))
 
-sender = sendnodes()
-sender.daemon = True
+active = True
+sender = Timer(interval, sendnodes)
 sender.start()
-sender.toexit = False
 
 try:
 
@@ -238,7 +234,9 @@ try:
 		'''
 		#sleep(5)
 except KeyboardInterrupt:
-	sender.toexit = True
+	#sender.toexit = True
+	active = False
+	sender.cancel()
 	print('\nRouting Table')
 	print('+-----------------------+-----------------------+------+')
 	print('|      Dest Address     |   Next Hop Address    | Cost |')
@@ -261,8 +259,3 @@ except KeyboardInterrupt:
 		print(str(val) + ' bytes sent to ' + hana.address())
 	sock.close()
 	print('nope.. exiting')
-
-
-sock = socket(AF_INET, SOCK_DGRAM)
-
-sock.close()
