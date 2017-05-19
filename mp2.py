@@ -82,13 +82,13 @@ class nodecost:
 def costparser(datain, selfaddress):
 	listout = []
 	for item in datain:
-		hana = item.split(None, 3)
+		hana = item.split(' ')
 		if(len(hana) != 3):
 			print('Cost formatting error.. exiting')
 			exit()
 		try:
 			if selfaddress[0] != '127.0.0.1' and hana[0] == '127.0.0.1':
-				hana[0] = selfip
+				hana[0] = ip
 			if selfaddress == (hana[0],int(hana[1])):
 				hana[2] = '0'
 			song = nodecost((hana[0], int(hana[1])), int(hana[2]))
@@ -186,12 +186,13 @@ try:
 			print('Sketchy source sent data')
 			continue
 		sourcecost = sourcecost[0].getCost()
-		sourcetable = costparser(payload.decode(stdout.encoding).rstrip().split('\n'), source)
+		sourcetable = costparser(payload.decode(stdout.encoding).rstrip().split('\n'), ('',0))
 		sourceselfcost = list(hana for hana in sourcetable if hana.tuple() == source)
 		if len(sourceselfcost) != 1:
 			print('Sketchy data from neighbor')
 			continue
 		sourceselfcost = sourceselfcost[0].getCost()
+		'''
 		print('\nCost Table for %s:%d Nodes' % source)
 		print('+-----------------+-------+------+')
 		print('|     Address     | Port  | Cost |')
@@ -203,6 +204,29 @@ try:
 			#routing_table.append(song)
 		print('+-----------------+-------+------+')
 		'''
+
+		for num, hana in enumerate(routing_table):
+			dva = list([song for song in sourcetable if song.tuple() == hana.desttuple()])
+			if(len(dva) != 1):
+				continue
+			song = dva[0]
+			if hana.desttuple() == (ip, port):
+				print('its me')
+				pass
+			elif hana.nexttuple() == source:
+				print(('update %s:%d with ' % hana.desttuple()) + str(song.getCost()))
+				cam = nodeinfo(hana.desttuple(), song.tuple(), song.getCost() + sourcecost + sourceselfcost)
+				routing_table[num] = cam
+			elif hana.getCost() > (song.getCost() + sourcecost + sourceselfcost):
+				cam = nodeinfo(hana.desttuple(), song.tuple(), song.getCost() + sourcecost + sourceselfcost)
+				routing_table[num] = cam
+			sourcetable.remove(song)
+
+		for hana in sourcetable:
+			print('wat')
+			song = nodeinfo(hana.tuple(), hana.tuple(), hana.getCost() + sourcecost + sourceselfcost)
+			routing_table.append(song)
+		'''
 		for hana in costlist:
 			#print('shit %s:%d vs %s:%d' % (hana.ip(), hana.port(), ip, port))
 			if hana.ip() == ip and port == hana.port():
@@ -212,6 +236,26 @@ try:
 		#sleep(5)
 except KeyboardInterrupt:
 	sender.toexit = True
+	print('\nRouting Table')
+	print('+-----------------------+-----------------------+------+')
+	print('|      Dest Address     |   Next Hop Address    | Cost |')
+	print('+-----------------------+-----------------------+------+')
+	for hana in routing_table:
+		print('| %-21s | %-21s | %-4d |' % (hana.destaddress(), hana.nextaddress(), hana.getCost()) )
+	print('+-----------------------+-----------------------+------+')
+	dva = [hana for hana in costlist if hana.tuple() != (ip,port)]
+	for hana in dva:
+		dataout = ''
+		for song in routing_table:
+			if song.desttuple() == (ip,port):
+				dataout += ('%s %d ' % song.desttuple() ) + ('%d\n' % psinfinity)
+			elif poisonenabled and hana.tuple() == song.nextaddress():
+				dataout += ('%s %d ' % song.desttuple() ) + ('%d\n' % psinfinity)
+			else:
+				dataout += ('%s %d ' % song.desttuple() ) + ('%d\n' % song.getCost())
+		print(dataout)
+		val = sock.sendto(dataout.encode(stdout.encoding), hana.tuple())
+		print(str(val) + ' bytes sent to ' + hana.address())
 	sock.close()
 	print('nope.. exiting')
 
