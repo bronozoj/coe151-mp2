@@ -1,23 +1,33 @@
 from socket import socket, AF_INET, SOCK_DGRAM
-from sys import argv
+from sys import argv, stdout
 from threading import Thread
 from time import sleep
 
 class sendnodes(Thread):
+	toexit = False
 	def run(self):
 		while(1):
-			print('\nCost Table for Current Nodes')
-			print('+-----------------+-------+------+')
-			print('|     Address     | Port  | Cost |')
-			print('+-----------------+-------+------+')
-			for hana in costlist:
-				print('| %-15s | %5d | %-4d |' % (hana.ip(), hana.port(), hana.cost()) )
-				song = nodeinfo('%s:%d' % (hana.ip(),hana.port()), '%s:%d' % (hana.ip(),hana.port()), psinfinity)
-			print('+-----------------+-------+------+')
+			if sender.toexit:
+				print('byeee')
+				exit()
+			print('\nRouting Table')
+			print('+-----------------------+-----------------------+------+')
+			print('|      Dest Address     |   Next Hop Address    | Cost |')
+			print('+-----------------------+-----------------------+------+')
+			for hana in routing_table:
+				print('| %-21s | %-21s | %-4d |' % (hana.destaddress(), hana.nextaddress(), hana.getCost()) )
+			print('+-----------------------+-----------------------+------+')
+			dva = [hana for hana in costlist if hana.tuple() != (ip,port)]
+			for hana in dva:
+				dataout = ''
+				for song in routing_table:
+					if poisonenabled and hana.tuple() == song.nextaddress():
+						dataout += ('%s %d ' % song.desttuple() ) + ('%d\n' % psinfinity)
+					else:
+						dataout += ('%s %d ' % song.desttuple() ) + ('%d\n' % song.getCost())
+				val = sock.sendto(dataout.encode(stdout.encoding), hana.tuple())
+				print(str(val) + ' bytes sent to ' + hana.address())
 			sleep(3);
-
-#	def quit(self):
-#		print('thread exiting')
 
 def exitmessage(message):
 	print(message)
@@ -25,49 +35,68 @@ def exitmessage(message):
 	exit()
 
 class nodeinfo:
-	def __init__(self, ip, nexthop, cost):
+	def __init__(self, dest, nexthop, cost):
 		self.travelcost = cost
-		self.destip = ip
-		self.nexthopip = nexthop
-
+		self.destip = dest[0]
+		self.destport = dest[1]
+		self.nextip = nexthop[0]
+		self.nextport = nexthop[1]
+		self.cost = min(cost, psinfinity)
 	def nexthop(self):
-		return self.nexthopip
-
-	def nexthop(self, nexthop):
-		self.nexthopip = nexthop
-		return nexthop
-
-	def cost(self):
+		return self.nextip + ':' + str(self.nextport)
+	def nexttuple(self):
+		return (self.nextip, self.nextport)
+	def desttuple(self):
+		return (self.destip, self.destport)
+	def destaddress(self):
+		return self.destip + ':' + str(self.destport)	
+	def nextaddress(self):
+		return self.nextip + ':' + str(self.nextport)
+	def updatehop(self, nexthop, cost):
+		if self.nexthoptuple() != nexthop:
+			self.nextip = nexthop[0]
+			self.nextport = nexthop[1]
+		self.cost = min(cost, psinfinity)
+		return
+	def getCost(self):
 		return self.cost
-
-	def cost(self, cost):
-		self.travelcost = cost
-		return cost
-
-	def ip(self):
+	def destip(self):
 		return self.destip
 
 class nodecost:
-	def __init__(self, ip, port, cost):
-		if cost > psinfinity:
-			cost = psinfinity
-		self.travelcost = cost
-		self.destip = ip
-		self.destport = port
-
-	def cost(self):
+	def __init__(self, address, cost):
+		self.travelcost = min(cost, psinfinity)
+		self.destip = address[0]
+		self.destport = int(address[1])
+	def getCost(self):
 		return self.travelcost
-
-	def cost2(self, value):
-		if value > psinfinity:
-			value = psinfinity
-		self.travelcost = value
-
 	def ip(self):
 		return self.destip
-
 	def port(self):
 		return self.destport
+	def tuple(self):
+		return (self.destip, self.destport)
+	def address(self):
+		return self.destip + ':' + str(self.destport)
+
+def costparser(datain, selfaddress):
+	listout = []
+	for item in datain:
+		hana = item.split(None, 3)
+		if(len(hana) != 3):
+			print('Cost formatting error.. exiting')
+			exit()
+		try:
+			if selfaddress[0] != '127.0.0.1' and hana[0] == '127.0.0.1':
+				hana[0] = selfip
+			if selfaddress == (hana[0],int(hana[1])):
+				hana[2] = '0'
+			song = nodecost((hana[0], int(hana[1])), int(hana[2]))
+			listout.append(song)
+		except ValueError:
+			print('Cost file data error.. exiting')
+			exit()
+	return listout	
 
 interval = 10000
 psinfinity = 100
@@ -76,7 +105,6 @@ filedir = ''
 ip = ''
 poisonenabled = False
 costfile = 0
-costlist = []
 routing_table = []
 
 buf = ''
@@ -106,6 +134,8 @@ for hana in argv[1:]:
 			exitmessage('Unknown option --' + buf)
 		buf = ''
 
+if ip == '':
+	ip = '127.0.0.1'
 
 print('Current Settings...')
 print('Interval: ' + str(interval/1000) + ' seconds')
@@ -124,50 +154,64 @@ except IOError:
 	print('Run this script without arguments for help')
 	exit()
 
-for buf in costfile.readlines():
-	hana = buf.split(None, 3)
-	if(len(hana) != 3):
-		print('Cost file formatting error.. exiting')
-		print('Run this script without arguments for help')
-		exit()
-	try:
-		if ip != '' and hana[0] == '127.0.0.1':
-			hana[0] = ip
-		if '%s:%s' %(hana[0], hana[1]) == '%s:%s' % (ip, port):
-			hana[2] = '0'
-		song = nodecost(hana[0], int(hana[1]), int(hana[2]))
-	except ValueError:
-		print('Cost file data error.. exiting')
-		exit()
-	
-	costlist.append(song)
-		
-	#print(buf)
+costlist = costparser(costfile.readlines(), (ip, port))
 
-#print('\nCost Table for Current Nodes')
-#print('+-----------------+-------+------+')
-#print('|     Address     | Port  | Cost |')
-#print('+-----------------+-------+------+')
-#for hana in costlist:
-#	print('| %-15s | %5d | %-4d |' % (hana.ip(), hana.port(), hana.cost()) )
-#	song = nodeinfo('%s:%d' % (hana.ip(),hana.port()), '%s:%d' % (hana.ip(),hana.port()), psinfinity)
-#print('+-----------------+-------+------+')
+print('\nCost Table for Current Nodes')
+print('+-----------------+-------+------+')
+print('|     Address     | Port  | Cost |')
+print('+-----------------+-------+------+')
+for hana in costlist:
+	print('| %-15s | %5d | %-4d |' % (hana.ip(), hana.port(), hana.getCost()) )
+	if hana.tuple() == (ip, port):
+		song = nodeinfo( hana.tuple(), hana.tuple(), 0)
+	else:
+		song = nodeinfo( hana.tuple(), hana.tuple(), psinfinity)
+	routing_table.append(song)
+print('+-----------------+-------+------+')
+
+
+sender = sendnodes()
+sender.daemon = True
+sender.start()
+sender.toexit = False
+
+sock = socket(AF_INET, SOCK_DGRAM)
+sock.bind(('', port))
 
 try:
-	sender = sendnodes()
-	sender.daemon = True
-	sender.start()
 
 	while(1):
-	
-		print('dickbutt')
+		payload, source = sock.recvfrom(10240)
+		sourcecost = list(hana for hana in costlist if hana.tuple() == source)
+		if len(sourcecost) != 1:
+			print('Sketchy source sent data')
+			continue
+		sourcecost = sourcecost[0].getCost()
+		sourcetable = costparser(payload.decode(stdout.encoding).rstrip().split('\n'), source)
+		sourceselfcost = list(hana for hana in sourcetable if hana.tuple() == source)
+		if len(sourcecost) != 1:
+			print('Sketchy data from neighbor')
+			continue
+		print('\nCost Table for %s:%d Nodes' % source)
+		print('+-----------------+-------+------+')
+		print('|     Address     | Port  | Cost |')
+		print('+-----------------+-------+------+')
+		sourcetable.remove(sourceselfcost)
+		for hana in costlist:
+			print('| %-15s | %5d | %-4d |' % (hana.ip(), hana.port(), hana.getCost()) )
+			song = nodeinfo( hana.tuple(), hana.tuple(), psinfinity)
+			routing_table.append(song)
+		print('+-----------------+-------+------+')
+		'''
 		for hana in costlist:
 			#print('shit %s:%d vs %s:%d' % (hana.ip(), hana.port(), ip, port))
 			if hana.ip() == ip and port == hana.port():
-				costlist[costlist.index(hana)].cost2(hana.cost() + 1)
+				
 				print('buttdick')
-		sleep(5)
+		'''
+		#sleep(5)
 except KeyboardInterrupt:
+	sender.toexit = True
 	print('nope.. exiting')
 
 
