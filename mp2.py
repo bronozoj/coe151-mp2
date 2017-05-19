@@ -218,7 +218,7 @@ try:
 				cam = nodeinfo(hana.desttuple(), song.tuple(), song.getCost() + sourcecost + sourceselfcost)
 				routing_table[num] = cam
 			elif hana.getCost() > (song.getCost() + sourcecost + sourceselfcost):
-				cam = nodeinfo(hana.desttuple(), song.tuple(), song.getCost() + sourcecost + sourceselfcost)
+				cam = nodeinfo(hana.desttuple(), source, song.getCost() + sourcecost + sourceselfcost)
 				routing_table[num] = cam
 			sourcetable.remove(song)
 
