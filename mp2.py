@@ -217,6 +217,9 @@ try:
 				print(('update %s:%d with ' % hana.desttuple()) + str(song.getCost()))
 				cam = nodeinfo(hana.desttuple(), source, song.getCost() + sourcecost + sourceselfcost)
 				routing_table[num] = cam
+			elif poisonenabled and hana.getCost() == psinfinity and hana.nexttuple() == hana.desttuple != source:
+				print('not updating')
+				pass
 			elif hana.getCost() > (song.getCost() + sourcecost + sourceselfcost):
 				cam = nodeinfo(hana.desttuple(), source, song.getCost() + sourcecost + sourceselfcost)
 				routing_table[num] = cam
