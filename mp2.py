@@ -215,7 +215,7 @@ try:
 				pass
 			elif hana.nexttuple() == source:
 				print(('update %s:%d with ' % hana.desttuple()) + str(song.getCost()))
-				cam = nodeinfo(hana.desttuple(), song.tuple(), song.getCost() + sourcecost + sourceselfcost)
+				cam = nodeinfo(hana.desttuple(), source, song.getCost() + sourcecost + sourceselfcost)
 				routing_table[num] = cam
 			elif hana.getCost() > (song.getCost() + sourcecost + sourceselfcost):
 				cam = nodeinfo(hana.desttuple(), source, song.getCost() + sourcecost + sourceselfcost)
@@ -224,7 +224,7 @@ try:
 
 		for hana in sourcetable:
 			print('wat')
-			song = nodeinfo(hana.tuple(), hana.tuple(), hana.getCost() + sourcecost + sourceselfcost)
+			song = nodeinfo(hana.tuple(), source, hana.getCost() + sourcecost + sourceselfcost)
 			routing_table.append(song)
 		'''
 		for hana in costlist:
