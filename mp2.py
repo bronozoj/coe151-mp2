@@ -169,14 +169,13 @@ for hana in costlist:
 	routing_table.append(song)
 print('+-----------------+-------+------+')
 
+sock = socket(AF_INET, SOCK_DGRAM)
+sock.bind(('', port))
 
 sender = sendnodes()
 sender.daemon = True
 sender.start()
 sender.toexit = False
-
-sock = socket(AF_INET, SOCK_DGRAM)
-sock.bind(('', port))
 
 try:
 
@@ -189,18 +188,19 @@ try:
 		sourcecost = sourcecost[0].getCost()
 		sourcetable = costparser(payload.decode(stdout.encoding).rstrip().split('\n'), source)
 		sourceselfcost = list(hana for hana in sourcetable if hana.tuple() == source)
-		if len(sourcecost) != 1:
+		if len(sourceselfcost) != 1:
 			print('Sketchy data from neighbor')
 			continue
+		sourceselfcost = sourceselfcost[0].getCost()
 		print('\nCost Table for %s:%d Nodes' % source)
 		print('+-----------------+-------+------+')
 		print('|     Address     | Port  | Cost |')
 		print('+-----------------+-------+------+')
-		sourcetable.remove(sourceselfcost)
-		for hana in costlist:
+		#sourcetable.remove(sourceselfcost)
+		for hana in sourcetable:
 			print('| %-15s | %5d | %-4d |' % (hana.ip(), hana.port(), hana.getCost()) )
-			song = nodeinfo( hana.tuple(), hana.tuple(), psinfinity)
-			routing_table.append(song)
+			#song = nodeinfo( hana.tuple(), hana.tuple(), psinfinity)
+			#routing_table.append(song)
 		print('+-----------------+-------+------+')
 		'''
 		for hana in costlist:
@@ -212,6 +212,7 @@ try:
 		#sleep(5)
 except KeyboardInterrupt:
 	sender.toexit = True
+	sock.close()
 	print('nope.. exiting')
 
 
