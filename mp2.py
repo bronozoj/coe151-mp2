@@ -43,8 +43,6 @@ class nodeinfo:
 		self.nextport = nexthop[1]
 		self.cost = min(cost, psinfinity)
 		self.hold = 0
-	def nexthop(self):
-		return self.nextip + ':' + str(self.nextport)
 	def nexttuple(self):
 		return (self.nextip, self.nextport)
 	def desttuple(self):
@@ -53,16 +51,9 @@ class nodeinfo:
 		return self.destip + ':' + str(self.destport)	
 	def nextaddress(self):
 		return self.nextip + ':' + str(self.nextport)
-	def updatehop(self, nexthop, cost):
-		if self.nexthoptuple() != nexthop:
-			self.nextip = nexthop[0]
-			self.nextport = nexthop[1]
 		self.cost = min(cost, psinfinity)
-		return
 	def getCost(self):
 		return self.cost
-	def destip(self):
-		return self.destip
 	def held(self):
 		return self.hold
 	def died(self):
@@ -80,7 +71,7 @@ class nodecost:
 		return self.travelcost
 	def ip(self):
 		return self.destip
-	def port(self):
+	def port(self):ip(
 		return self.destport
 	def tuple(self):
 		return (self.destip, self.destport)
