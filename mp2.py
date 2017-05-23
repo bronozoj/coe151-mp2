@@ -42,6 +42,7 @@ class nodeinfo:
 		self.nextip = nexthop[0]
 		self.nextport = nexthop[1]
 		self.cost = min(cost, psinfinity)
+		self.hold = 0
 	def nexthop(self):
 		return self.nextip + ':' + str(self.nextport)
 	def nexttuple(self):
@@ -62,6 +63,13 @@ class nodeinfo:
 		return self.cost
 	def destip(self):
 		return self.destip
+	def held(self):
+		return self.hold
+	def died(self):
+		if self.hold > 0:
+			self.hold = self.hold - 1
+		else:
+			self.hold = 10		
 
 class nodecost:
 	def __init__(self, address, cost):
@@ -210,12 +218,13 @@ try:
 			item = item[0]
 			if entry.nexttuple() == source:
 				cam = nodeinfo(entry.desttuple(), source, item.getCost() + sourcecost + sourceselfcost)
-				routing_table[num] = cam
-			elif poisonenabled and entry.getCost() == psinfinity and entry.nexttuple() != source:
-				pass
-			elif entry.getCost() > (item.getCost() + sourcecost + sourceselfcost):
+				routing_table[num] = cam				
+			elif entry.getCost() > (item.getCost() + sourcecost + sourceselfcost) and (~poisonenabled or (poisonenabled and entry.held() == 0)):
 				cam = nodeinfo(entry.desttuple(), source, item.getCost() + sourcecost + sourceselfcost)
 				routing_table[num] = cam
+			elif poisonenabled and entry.getCost() == psinfinity and entry.nexttuple() != source:
+				routing_table[num].died()
+				print('entering here')	
 			sourcetable.remove(item)
 
 		for item in sourcetable:
